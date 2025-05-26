@@ -54,7 +54,15 @@ jobs:
           sed -i '/^# CONFIG_PACKAGE_luci-app-ddns is not set/a CONFIG_PACKAGE_luci-app-ddns=y' .config
           sed -i '/^# CONFIG_PACKAGE_luci-app-upnp is not set/a CONFIG_PACKAGE_luci-app-upnp=y' .config
           make defconfig
-
+      - name: Add Luci Chinese translations
+        working-directory: openwrt
+        run: |
+          echo "CONFIG_PACKAGE_luci-i18n-base-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-app-upnp-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-app-ddns-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-app-passwall2-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-app-turboacc-zh-cn=y" >> .config
+          make defconfig
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
         run: |
