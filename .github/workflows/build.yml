@@ -105,10 +105,15 @@ jobs:
         run: |
           PASSWD=$(openssl passwd -1 '${PASSWORD}')
           mkdir -p files/etc
-          awk -F: -v p="$PASSWD" '{
-            if ($1=="root") $2=p;
-            print $0
-          }' /etc/shadow > files/etc/shadow
+          SHADOW_FILE=package/base-files/files/etc/shadow
+          if [ ! -f "$SHADOW_FILE" ]; then
+            echo "root:*:0:0:99999:7:::" > files/etc/shadow
+          else
+            awk -F: -v p="$PASSWD" '{
+              if ($1=="root") $2=p;
+              print $0
+            }' $SHADOW_FILE > files/etc/shadow
+          fi
       - name: Build firmware
         working-directory: openwrt
         run: |
