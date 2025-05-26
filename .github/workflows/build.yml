@@ -1,4 +1,4 @@
-name: Build ImmortalWrt x86_64 with Passwall2, DDNS, UPnP
+name: Build ImmortalWrt x86_64 Docker Image (for NAS)
 
 on:
   schedule:
@@ -11,7 +11,7 @@ on:
         default: '192.168.1.1'
 
 env:
-  LAN_IP: ${{ vars.LAN_IP }}
+  LAN_IP: ${{ github.event.inputs.LAN_IP || vars.LAN_IP || '192.168.1.1' }}
   PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
   PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
 
@@ -57,13 +57,13 @@ jobs:
         working-directory: immortalwrt
         run: |
           mkdir -p files/etc/config
-          cat > files/etc/config/network <<'EOF'
+          cat > files/etc/config/network <<EOF
           config interface 'lan'
               option ifname 'eth0'
               option proto 'static'
               option ipaddr '${LAN_IP}'
               option netmask '255.255.255.0'
-          
+
           config interface 'wan'
               option ifname 'eth1'
               option proto 'pppoe'
@@ -77,19 +77,30 @@ jobs:
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
 
-      - name: Upload firmware to Release
-        uses: softprops/action-gh-release@v2
-        if: success()
+      - name: Prepare Docker context with rootfs
+        run: |
+          mkdir docker-context
+          ROOTFS_TAR=$(ls immortalwrt/bin/targets/x86/64/*rootfs.tar.gz | head -n 1)
+          cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
+          cat > docker-context/Dockerfile <<EOF
+          FROM scratch
+          ADD openwrt-rootfs.tar.gz /
+          CMD ["/sbin/init"]
+          EOF
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
         with:
-          tag_name: monthly-build-${{ github.run_number }}
-          name: "Monthly x86_64 Build ${{ github.run_number }}"
-          body: |
-            自动定时构建，目标平台 x86_64，集成 Passwall2、luci-app-ddns、luci-app-upnp。
-            构建时间：${{ github.run_started_at }}
-          files: |
-            immortalwrt/bin/targets/x86/64/*.img.gz
-            immortalwrt/bin/targets/x86/64/*.vmdk
-            immortalwrt/bin/targets/x86/64/*.iso
-            immortalwrt/bin/targets/x86/64/*.bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          context: ./docker-context
+          file: ./docker-context/Dockerfile
+          push: false
+          tags: immortalwrt-nas:latest
+
+      - name: Save Docker image as tar
+        run: docker save immortalwrt-nas:latest -o immortalwrt-nas-docker-image.tar
+
+      - name: Upload Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: immortalwrt-nas-docker-image
+          path: immortalwrt-nas-docker-image.tar
