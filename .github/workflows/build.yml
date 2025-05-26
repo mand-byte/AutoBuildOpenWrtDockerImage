@@ -8,10 +8,10 @@ on:
       LAN_IP:
         description: 'LAN IP Address'
         required: false
-        default: '192.168.2.1'
+        default: '192.168.1.1'
 
 env:
-  LAN_IP: ${{ github.event.inputs.LAN_IP || '192.168.2.1' }}
+  LAN_IP: ${{ vars.LAN_IP }}
   PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
   PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
 
@@ -58,18 +58,18 @@ jobs:
         run: |
           mkdir -p files/etc/config
           cat > files/etc/config/network <<'EOF'
-config interface 'lan'
-    option ifname 'eth0'
-    option proto 'static'
-    option ipaddr '${LAN_IP}'
-    option netmask '255.255.255.0'
-
-config interface 'wan'
-    option ifname 'eth1'
-    option proto 'pppoe'
-    option username '${PPPoE_USERNAME}'
-    option password '${PPPoE_PASSWORD}'
-EOF
+          config interface 'lan'
+              option ifname 'eth0'
+              option proto 'static'
+              option ipaddr '${LAN_IP}'
+              option netmask '255.255.255.0'
+          
+          config interface 'wan'
+              option ifname 'eth1'
+              option proto 'pppoe'
+              option username '${PPPoE_USERNAME}'
+              option password '${PPPoE_PASSWORD}'
+          EOF
 
       - name: Build firmware
         working-directory: immortalwrt
