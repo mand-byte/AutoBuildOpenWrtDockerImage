@@ -14,7 +14,7 @@ env:
   LAN_IP: ${{ github.event.inputs.LAN_IP || vars.LAN_IP || '192.168.1.1' }}
   PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
   PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
-
+  PASSWORD: ${{ secrets.PASSWORD || 'password' }}
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -48,31 +48,23 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Add Passwall2 and update feeds
+      - name: Add custom feeds
         working-directory: openwrt
         run: |
-          echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2.git;main" >> feeds.conf.default
-          
-          ./scripts/feeds update passwall2 
-          ./scripts/feeds install passwall2 
+          if [ -f ../../customfeeds.conf ]; then
+            cat ../../customfeeds.conf >> feeds.conf.default
+          fi
 
-      - name: Select Passwall2, DDNS, UPnP in .config
+      - name: Update and install custom feeds
         working-directory: openwrt
         run: |
-          make defconfig
-          sed -i '/^# CONFIG_PACKAGE_luci-app-passwall2 is not set/a CONFIG_PACKAGE_luci-app-passwall2=y' .config
-          
-          sed -i '/^# CONFIG_PACKAGE_luci-app-ddns is not set/a CONFIG_PACKAGE_luci-app-ddns=y' .config
-          sed -i '/^# CONFIG_PACKAGE_luci-app-upnp is not set/a CONFIG_PACKAGE_luci-app-upnp=y' .config
-          make defconfig
-      - name: Add Luci Chinese translations
-        working-directory: openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+      - name: Copy custom .config
         run: |
-          echo "CONFIG_PACKAGE_luci-i18n-base-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-app-upnp-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-app-ddns-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-app-passwall2-zh-cn=y" >> .config
-          make defconfig
+          cp ../.config .config
+        working-directory: openwrt
+
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
         run: |
@@ -90,7 +82,15 @@ jobs:
               option username '${PPPoE_USERNAME}'
               option password '${PPPoE_PASSWORD}'
           EOF
-
+      - name: Set root password
+        working-directory: openwrt
+        run: |
+          PASSWD=$(openssl passwd -1 '${PASSWORD}')
+          mkdir -p files/etc
+          awk -F: -v p="$PASSWD" '{
+            if ($1=="root") $2=p;
+            print $0
+          }' /etc/shadow > files/etc/shadow
       - name: Build firmware
         working-directory: openwrt
         run: |
@@ -99,8 +99,12 @@ jobs:
 
       - name: Prepare Docker context with rootfs
         run: |
-          mkdir docker-context
-          ROOTFS_TAR=$(ls openwrt/bin/targets/x86/64/*rootfs.tar.gz | head -n 1)
+          mkdir -p docker-context
+          ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name '*rootfs.tar.gz' | head -n 1)
+          if [ -z "$ROOTFS_TAR" ]; then
+            echo "No rootfs tar.gz found! Build may have failed."
+            exit 1
+          fi
           cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
           DATE_TAG=$(date +%Y%m%d)
           echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
