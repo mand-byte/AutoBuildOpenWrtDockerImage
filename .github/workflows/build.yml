@@ -91,6 +91,8 @@ jobs:
           mkdir docker-context
           ROOTFS_TAR=$(ls openwrt/bin/targets/x86/64/*rootfs.tar.gz | head -n 1)
           cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
+          DATE_TAG=$(date +%Y%m%d)
+          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
           cat > docker-context/Dockerfile <<EOF
           FROM scratch
           ADD openwrt-rootfs.tar.gz /
@@ -103,13 +105,14 @@ jobs:
           context: ./docker-context
           file: ./docker-context/Dockerfile
           push: false
-          tags: openwrt-nas:latest
+          tags: openwrt-nas:${{ env.DATE_TAG }}
 
       - name: Save Docker image as tar
-        run: docker save openwrt-nas:latest -o openwrt-nas-docker-image.tar
+        run: |
+          docker save openwrt-nas:${DATE_TAG} -o openwrt-nas-docker-image-${DATE_TAG}.tar
 
       - name: Upload Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-nas-docker-image
-          path: openwrt-nas-docker-image.tar
+          name: openwrt-nas-docker-image-${{ env.DATE_TAG }}
+          path: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
