@@ -57,7 +57,7 @@ jobs:
         working-directory: immortalwrt
         run: |
           mkdir -p files/etc/config
-          cat > files/etc/config/network <<EOF
+          cat > files/etc/config/network <<'EOF'
 config interface 'lan'
     option ifname 'eth0'
     option proto 'static'
@@ -86,11 +86,10 @@ EOF
           body: |
             自动定时构建，目标平台 x86_64，集成 Passwall2、luci-app-ddns、luci-app-upnp。
             构建时间：${{ github.run_started_at }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
           files: |
             immortalwrt/bin/targets/x86/64/*.img.gz
             immortalwrt/bin/targets/x86/64/*.vmdk
             immortalwrt/bin/targets/x86/64/*.iso
             immortalwrt/bin/targets/x86/64/*.bin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
