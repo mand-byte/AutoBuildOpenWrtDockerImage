@@ -1,14 +1,23 @@
-name: Build ImmortalWrt x86_64 with Passwall2
+name: Build ImmortalWrt x86_64 with Passwall2, DDNS, UPnP
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # 每月1号 00:00 UTC
+    - cron: '0 0 1 * *'
   workflow_dispatch:
+    inputs:
+      LAN_IP:
+        description: 'LAN IP Address'
+        required: false
+        default: '192.168.2.1'
+
+env:
+  LAN_IP: ${{ github.event.inputs.LAN_IP || '192.168.2.1' }}
+  PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
+  PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -27,21 +36,40 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Add Passwall2 feed
+      - name: Add Passwall2 and update feeds
         working-directory: immortalwrt
         run: |
           echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2.git;main" >> feeds.conf.default
           ./scripts/feeds update passwall2
           ./scripts/feeds install passwall2
 
-      - name: Configure for x86_64 and Passwall2
+      - name: Select Passwall2, DDNS, UPnP in .config
         working-directory: immortalwrt
         run: |
           cp -f target/linux/x86/64/config-5.15 .config || true
-          # 自动选择 passwall2 相关包
           make defconfig
           sed -i '/^# CONFIG_PACKAGE_luci-app-passwall2 is not set/a CONFIG_PACKAGE_luci-app-passwall2=y' .config
+          sed -i '/^# CONFIG_PACKAGE_luci-app-ddns is not set/a CONFIG_PACKAGE_luci-app-ddns=y' .config
+          sed -i '/^# CONFIG_PACKAGE_luci-app-upnp is not set/a CONFIG_PACKAGE_luci-app-upnp=y' .config
           make defconfig
+
+      - name: Customize network config (LAN & PPPoE)
+        working-directory: immortalwrt
+        run: |
+          mkdir -p files/etc/config
+          cat > files/etc/config/network <<EOF
+config interface 'lan'
+    option ifname 'eth0'
+    option proto 'static'
+    option ipaddr '${LAN_IP}'
+    option netmask '255.255.255.0'
+
+config interface 'wan'
+    option ifname 'eth1'
+    option proto 'pppoe'
+    option username '${PPPoE_USERNAME}'
+    option password '${PPPoE_PASSWORD}'
+EOF
 
       - name: Build firmware
         working-directory: immortalwrt
@@ -56,7 +84,7 @@ jobs:
           tag_name: monthly-build-${{ github.run_number }}
           name: "Monthly x86_64 Build ${{ github.run_number }}"
           body: |
-            自动定时构建，目标平台 x86_64，集成 Passwall2。
+            自动定时构建，目标平台 x86_64，集成 Passwall2、luci-app-ddns、luci-app-upnp。
             构建时间：${{ github.run_started_at }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
