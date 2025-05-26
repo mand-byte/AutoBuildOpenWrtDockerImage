@@ -34,7 +34,7 @@ jobs:
 
       - name: Clone OpenWrt source code
         run: |
-          git clone --depth 1 https://github.com/openwrt/openwrt.git
+          git clone https://github.com/openwrt/openwrt.git
           cd openwrt
           # 获取最新的不带rc的分支名
           BRANCH=$(git branch -r | grep -Eo 'origin/openwrt-[0-9]+\.[0-9]+' | sort -Vr | head -n1 | sed 's|origin/||')
