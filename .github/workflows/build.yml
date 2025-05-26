@@ -73,6 +73,11 @@ jobs:
           cp ../.config .config
         working-directory: openwrt
 
+      - name: Defconfig fallback
+        working-directory: openwrt
+        run: |
+          [ -f .config ] || make defconfig
+
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
         run: |
