@@ -37,7 +37,7 @@ jobs:
           ./scripts/feeds install -a
 
       - name: Add Passwall2, TurboACC and update feeds
-        working-directory: immortalwrt
+        working-directory: openwrt
         run: |
           echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2.git;main" >> feeds.conf.default
           echo "src-git turboacc https://github.com/fw876/helloworld" >> feeds.conf.default
@@ -45,9 +45,8 @@ jobs:
           ./scripts/feeds install passwall2 luci-app-turboacc
 
       - name: Select Passwall2, TurboACC, DDNS, UPnP in .config
-        working-directory: immortalwrt
+        working-directory: openwrt
         run: |
-          cp -f target/linux/x86/64/config-5.15 .config || true
           make defconfig
           sed -i '/^# CONFIG_PACKAGE_luci-app-passwall2 is not set/a CONFIG_PACKAGE_luci-app-passwall2=y' .config
           sed -i '/^# CONFIG_PACKAGE_luci-app-turboacc is not set/a CONFIG_PACKAGE_luci-app-turboacc=y' .config
