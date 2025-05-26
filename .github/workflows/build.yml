@@ -1,4 +1,4 @@
-name: Build ImmortalWrt x86_64 Docker Image (for NAS)
+name: Build OpenWrt x86_64 Docker Image (for NAS)
 
 on:
   schedule:
@@ -29,32 +29,34 @@ jobs:
             gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
             rsync unzip zlib1g-dev file wget
 
-      - name: Clone ImmortalWrt source code
+      - name: Clone OpenWrt source code
         run: |
-          git clone --depth 1 https://github.com/immortalwrt/immortalwrt.git
-          cd immortalwrt
+          git clone --depth 1 https://github.com/openwrt/openwrt.git
+          cd openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Add Passwall2 and update feeds
+      - name: Add Passwall2, TurboACC and update feeds
         working-directory: immortalwrt
         run: |
           echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2.git;main" >> feeds.conf.default
-          ./scripts/feeds update passwall2
-          ./scripts/feeds install passwall2
+          echo "src-git turboacc https://github.com/fw876/helloworld" >> feeds.conf.default
+          ./scripts/feeds update passwall2 turboacc
+          ./scripts/feeds install passwall2 luci-app-turboacc
 
-      - name: Select Passwall2, DDNS, UPnP in .config
+      - name: Select Passwall2, TurboACC, DDNS, UPnP in .config
         working-directory: immortalwrt
         run: |
           cp -f target/linux/x86/64/config-5.15 .config || true
           make defconfig
           sed -i '/^# CONFIG_PACKAGE_luci-app-passwall2 is not set/a CONFIG_PACKAGE_luci-app-passwall2=y' .config
+          sed -i '/^# CONFIG_PACKAGE_luci-app-turboacc is not set/a CONFIG_PACKAGE_luci-app-turboacc=y' .config
           sed -i '/^# CONFIG_PACKAGE_luci-app-ddns is not set/a CONFIG_PACKAGE_luci-app-ddns=y' .config
           sed -i '/^# CONFIG_PACKAGE_luci-app-upnp is not set/a CONFIG_PACKAGE_luci-app-upnp=y' .config
           make defconfig
 
       - name: Customize network config (LAN & PPPoE)
-        working-directory: immortalwrt
+        working-directory: openwrt
         run: |
           mkdir -p files/etc/config
           cat > files/etc/config/network <<EOF
@@ -72,7 +74,7 @@ jobs:
           EOF
 
       - name: Build firmware
-        working-directory: immortalwrt
+        working-directory: openwrt
         run: |
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
@@ -80,7 +82,7 @@ jobs:
       - name: Prepare Docker context with rootfs
         run: |
           mkdir docker-context
-          ROOTFS_TAR=$(ls immortalwrt/bin/targets/x86/64/*rootfs.tar.gz | head -n 1)
+          ROOTFS_TAR=$(ls openwrt/bin/targets/x86/64/*rootfs.tar.gz | head -n 1)
           cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
           cat > docker-context/Dockerfile <<EOF
           FROM scratch
@@ -94,13 +96,13 @@ jobs:
           context: ./docker-context
           file: ./docker-context/Dockerfile
           push: false
-          tags: immortalwrt-nas:latest
+          tags: openwrt-nas:latest
 
       - name: Save Docker image as tar
-        run: docker save immortalwrt-nas:latest -o immortalwrt-nas-docker-image.tar
+        run: docker save openwrt-nas:latest -o openwrt-nas-docker-image.tar
 
       - name: Upload Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-nas-docker-image
-          path: immortalwrt-nas-docker-image.tar
+          name: openwrt-nas-docker-image
+          path: openwrt-nas-docker-image.tar
