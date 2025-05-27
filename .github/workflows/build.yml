@@ -1,4 +1,4 @@
-name: Build OpenWrt x86_64 Docker Image (for NAS)
+name: Build OpenWrt Docker Image (for NAS)
 
 on:
   workflow_dispatch:
@@ -17,19 +17,23 @@ on:
         default: 'Asia/Shanghai'
 
 env:
-  ARCH_LIST: "x86_64 arm64"
   LAN_IP: ${{ github.event.inputs.LAN_IP }}
   PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
   PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
   PASSWORD: ${{ secrets.PASSWORD }}
   TIMEZONE: ${{ github.event.inputs.TIMEZONE }}
   ZONENAME: ${{ github.event.inputs.ZONENAME }}
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.RUNNER }}
     strategy:
       matrix:
-        ARCH: [x86_64, arm64]
+        include:
+          - RUNNER: ubuntu-latest
+            ARCH: x86_64
+          - RUNNER: [self-hosted, ARM64]
+            ARCH: arm64
     env:
       ARCH: ${{ matrix.ARCH }}
     steps:
@@ -155,7 +159,13 @@ jobs:
       - name: Prepare Docker context with rootfs
         run: |
           mkdir -p docker-context
-          ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name "*${ARCH}*rootfs.tar.gz" | head -n 1)
+          if [ "${ARCH}" = "x86_64" ]; then
+            ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name "*x86-64*rootfs.tar.gz" | head -n 1)
+          elif [ "${ARCH}" = "arm64" ]; then
+            ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name "*armvirt-64*rootfs.tar.gz" | head -n 1)
+          else
+            ROOTFS_TAR=""
+          fi
           if [ -z "$ROOTFS_TAR" ]; then
             echo "No rootfs tar.gz found! 请检查.config是否启用了Target Images -> gzipped tar archive (CONFIG_TARGET_ROOTFS_TARGZ=y)"
             exit 1
