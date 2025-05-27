@@ -56,15 +56,13 @@ jobs:
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-      - name: Copy custom .config
-        run: |
-          cp ../.config .config
-        working-directory: openwrt
+      
 
       # 配置 OpenWrt
       - name: Configure OpenWrt for ${{ matrix.arch }}
         run: |
           cd openwrt
+          make defconfig
           # 根据架构选择目标
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
           echo -e "\nCONFIG_TARGET_x86_64=y\nCONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
@@ -72,7 +70,11 @@ jobs:
             echo -e "\nCONFIG_TARGET_armvirt_64=y\nCONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
           fi
           # 添加其他通用配置
-          make defconfig
+      
+      - name: Copy custom .config
+        run: |
+          cat ../.config >> .config
+        working-directory: openwrt
 
 
       - name: Customize network config (LAN & PPPoE)
