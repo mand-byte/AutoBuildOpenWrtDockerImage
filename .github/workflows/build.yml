@@ -125,12 +125,17 @@ jobs:
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
 
+      - name: List build output for debug
+        run: |
+          ls -lh openwrt/bin/targets/*/*/
+          ls -lh openwrt/bin/targets/*/*/*.tar.gz || true
+
       - name: Prepare Docker context with rootfs
         run: |
           mkdir -p docker-context
           ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name '*rootfs.tar.gz' | head -n 1)
           if [ -z "$ROOTFS_TAR" ]; then
-            echo "No rootfs tar.gz found! Build may have failed."
+            echo "No rootfs tar.gz found! 请检查.config是否启用了Target Images -> gzipped tar archive (CONFIG_TARGET_ROOTFS_TARGZ=y)"
             exit 1
           fi
           cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
