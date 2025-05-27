@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       PLATFORM:
-        description: 'OpenWrt 平台 (如 x86_64)'
+        description: 'OpenWrt 平台 (如 x86-64)'
         required: false
-        default: 'x86_64'
+        default: 'x86-64'
       VERSION:
         description: 'OpenWrt 版本号 (如 24.10.1)'
         required: false
@@ -25,7 +25,7 @@ on:
         default: 'Asia/Shanghai'
 
 env:
-  PLATFORM: ${{ github.event.inputs.PLATFORM || 'x86_64' }}
+  PLATFORM: ${{ github.event.inputs.PLATFORM || 'x86-64' }}
   VERSION: ${{ github.event.inputs.VERSION }}
   LAN_IP: ${{ github.event.inputs.LAN_IP || vars.LAN_IP || '192.168.1.1' }}
   TIMEZONE: ${{ github.event.inputs.TIMEZONE || vars.TIMEZONE || 'CST-8' }}
