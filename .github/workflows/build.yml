@@ -17,15 +17,21 @@ on:
         default: 'Asia/Shanghai'
 
 env:
-  LAN_IP: ${{ github.event.inputs.LAN_IP || vars.LAN_IP || '192.168.1.1' }}
+  ARCH_LIST: "x86_64 arm64"
+  LAN_IP: ${{ github.event.inputs.LAN_IP }}
   PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
   PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
-  PASSWORD: ${{ secrets.PASSWORD || 'password' }}
-  TIMEZONE: ${{ github.event.inputs.TIMEZONE || vars.TIMEZONE || 'CST-8' }}
-  ZONENAME: ${{ github.event.inputs.ZONENAME || vars.ZONENAME || 'Asia/Shanghai' }}
+  PASSWORD: ${{ secrets.PASSWORD }}
+  TIMEZONE: ${{ github.event.inputs.TIMEZONE }}
+  ZONENAME: ${{ github.event.inputs.ZONENAME }}
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ARCH: [x86_64, arm64]
+    env:
+      ARCH: ${{ matrix.ARCH }}
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -125,20 +131,14 @@ jobs:
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
 
-      - name: List build output for debug
-        run: |
-          ls -lh openwrt/bin/targets/*/*/
-          ls -lh openwrt/bin/targets/*/*/*.tar.gz || true
-
       - name: Prepare Docker context with rootfs
         run: |
           mkdir -p docker-context
-          ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name '*rootfs.tar.gz' | head -n 1)
+          ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name "*${ARCH}*rootfs.tar.gz" | head -n 1)
           if [ -z "$ROOTFS_TAR" ]; then
             echo "No rootfs tar.gz found! 请检查.config是否启用了Target Images -> gzipped tar archive (CONFIG_TARGET_ROOTFS_TARGZ=y)"
             exit 1
           fi
-          # 校验 tar 文件
           tar -tzf "$ROOTFS_TAR" > /dev/null || { echo "rootfs tar.gz 文件损坏"; exit 1; }
           cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
           DATE_TAG=$(date +%Y%m%d)
@@ -155,20 +155,18 @@ jobs:
           context: ./docker-context
           file: ./docker-context/Dockerfile
           push: false
-          tags: openwrt-nas:${{ env.DATE_TAG }}
+          tags: openwrt-nas:${{ env.ARCH }}-${{ env.DATE_TAG }}
 
       - name: Save Docker image as tar
         run: |
-          docker save openwrt-nas:${DATE_TAG} -o openwrt-nas-docker-image-${DATE_TAG}.tar
+          docker save openwrt-nas:${{ env.ARCH }}-${{ env.DATE_TAG }} -o openwrt-nas-docker-image-${{ env.ARCH }}-${{ env.DATE_TAG }}.tar
 
-      
-      
       - name: Upload Docker image to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'workflow_dispatch'
         with:
           tag_name: ${{ env.DATE_TAG }}
-          name: "OpenWrt NAS Docker Image ${{ env.DATE_TAG }}.tar"
+          name: "OpenWrt NAS Docker Image ${{ env.ARCH }} ${{ env.DATE_TAG }}.tar"
           body: |
-            自动构建的 OpenWrt NAS Docker 镜像。
-          files: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
+            自动构建的 OpenWrt NAS Docker 镜像（${{ env.ARCH }}）。
+          files: openwrt-nas-docker-image-${{ env.ARCH }}-${{ env.DATE_TAG }}.tar
