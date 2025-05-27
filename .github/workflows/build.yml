@@ -7,22 +7,9 @@ on:
         description: 'LAN IP Address'
         required: false
         default: '192.168.1.1'
-      TIMEZONE:
-        description: 'Timezone'
-        required: false
-        default: 'CST-8'
-      ZONENAME:
-        description: 'Zone Name'
-        required: false
-        default: 'Asia/Shanghai'
 
 env:
   LAN_IP: ${{ github.event.inputs.LAN_IP }}
-  PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
-  PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
-  PASSWORD: ${{ secrets.PASSWORD }}
-  TIMEZONE: ${{ github.event.inputs.TIMEZONE }}
-  ZONENAME: ${{ github.event.inputs.ZONENAME }}
 
 jobs:
   build:
@@ -90,7 +77,6 @@ jobs:
             echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
           fi
           # 添加其他通用配置
-          echo "CONFIG_ALL=y" >> .config
           make defconfig
 
 
@@ -104,37 +90,7 @@ jobs:
               option proto 'static'
               option ipaddr '${LAN_IP}'
               option netmask '255.255.255.0'
-
-          config interface 'wan'
-              option ifname 'eth1'
-              option proto 'pppoe'
-              option username '${PPPoE_USERNAME}'
-              option password '${PPPoE_PASSWORD}'
-          EOF
-      - name: Set timezone config
-        working-directory: openwrt
-        run: |
-          mkdir -p files/etc/config
-          cat > files/etc/config/system <<EOF
-          config system
-              option hostname 'OpenWrt'
-              option timezone '${TIMEZONE}'
-              option zonename '${ZONENAME}'
-          EOF
-      - name: Set root password
-        working-directory: openwrt
-        run: |
-          PASSWD=$(openssl passwd -1 '${PASSWORD}')
-          mkdir -p files/etc
-          SHADOW_FILE=package/base-files/files/etc/shadow
-          if [ ! -f "$SHADOW_FILE" ]; then
-            echo "root:*:0:0:99999:7:::" > files/etc/shadow
-          else
-            awk -F: -v p="$PASSWD" '{
-              if ($1=="root") $2=p;
-              print $0
-            }' $SHADOW_FILE > files/etc/shadow
-          fi
+ 
       - name: Build firmware
         working-directory: openwrt
         run: |
