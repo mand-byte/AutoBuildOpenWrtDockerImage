@@ -84,6 +84,23 @@ jobs:
         run: |
           make defconfig
 
+      - name: Prepare .config for ${{ matrix.ARCH }}
+        working-directory: openwrt
+        run: |
+          if [ "${ARCH}" = "x86_64" ]; then
+            sed -i '/^CONFIG_TARGET_/d' .config
+            echo "CONFIG_TARGET_x86=y" >> .config
+            echo "CONFIG_TARGET_x86_64=y" >> .config
+            echo "CONFIG_TARGET_x86_64_Generic=y" >> .config
+          elif [ "${ARCH}" = "arm64" ]; then
+            sed -i '/^CONFIG_TARGET_/d' .config
+            echo "CONFIG_TARGET_armvirt=y" >> .config
+            echo "CONFIG_TARGET_armvirt_64=y" >> .config
+            echo "CONFIG_TARGET_armvirt_64_Generic=y" >> .config
+          fi
+          # 保证 rootfs tar.gz 选项
+          echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
+
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
         run: |
