@@ -74,6 +74,7 @@ jobs:
       - name: Copy custom .config
         run: |
           cat ../.config >> .config
+          make defconfig
         working-directory: openwrt
 
 
