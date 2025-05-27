@@ -98,8 +98,9 @@ jobs:
             echo "CONFIG_TARGET_armvirt_64=y" >> .config
             echo "CONFIG_TARGET_armvirt_64_Generic=y" >> .config
           fi
-          # 保证 rootfs tar.gz 选项
           echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
+          # 关键：再次 defconfig，清理无关 target
+          make defconfig
 
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
