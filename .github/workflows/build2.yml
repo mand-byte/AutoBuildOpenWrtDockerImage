@@ -1,0 +1,154 @@
+name: Build OpenWrt ImageBuilder & Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      PLATFORM:
+        description: 'OpenWrt 平台 (如 x86_64)'
+        required: false
+        default: 'x86_64'
+      VERSION:
+        description: 'OpenWrt 版本号 (如 24.10.1)'
+        required: false
+        default: ''
+      LAN_IP:
+        description: 'LAN IP 地址'
+        required: false
+        default: '192.168.1.1'
+      TIMEZONE:
+        description: '时区'
+        required: false
+        default: 'CST-8'
+      ZONENAME:
+        description: '时区名称'
+        required: false
+        default: 'Asia/Shanghai'
+
+env:
+  PLATFORM: ${{ github.event.inputs.PLATFORM || 'x86_64' }}
+  VERSION: ${{ github.event.inputs.VERSION }}
+  LAN_IP: ${{ github.event.inputs.LAN_IP || vars.LAN_IP || '192.168.1.1' }}
+  TIMEZONE: ${{ github.event.inputs.TIMEZONE || vars.TIMEZONE || 'CST-8' }}
+  ZONENAME: ${{ github.event.inputs.ZONENAME || vars.ZONENAME || 'Asia/Shanghai' }}
+  PASSWORD: ${{ secrets.PASSWORD || 'password' }}
+  PPPoE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
+  PPPoE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Get latest OpenWrt ImageBuilder version if not set
+        id: get_version
+        run: |
+          if [ -z "${{ env.VERSION }}" ]; then
+            TAGS=$(curl -s "https://hub.docker.com/v2/repositories/openwrt/imagebuilder/tags?page_size=100" | \
+              jq -r '.results[].name' | grep -E '^x86-64-[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+            LATEST=$(echo "$TAGS" | tail -n1)
+            if [ -z "$LATEST" ]; then
+              echo "No valid imagebuilder tag found!"
+              exit 1
+            fi
+            echo "USE_TAG=$LATEST" >> $GITHUB_ENV
+          else
+            echo "USE_TAG=${{ env.PLATFORM }}-${{ env.VERSION }}" >> $GITHUB_ENV
+          fi
+
+      - name: Check .config compatibility
+        run: |
+          if ! grep -q '^CONFIG_TARGET_' .config; then
+            echo ".config 缺少 CONFIG_TARGET_ 相关配置，可能不兼容 imagebuilder"
+            exit 1
+          fi
+          if grep -q 'CONFIG_VERSION_NUMBER=' .config; then
+            echo ".config 检测到 OpenWrt 24.10 相关配置"
+          else
+            echo "警告：.config 未检测到 CONFIG_VERSION_NUMBER，建议用 24.10 menuconfig 生成"
+          fi
+
+      - name: Pull OpenWrt ImageBuilder Docker image
+        run: |
+          docker pull openwrt/imagebuilder:${USE_TAG}
+
+      - name: Prepare custom feeds and config
+        run: |
+          mkdir -p buildroot/files/etc/config
+          if [ -f customfeeds.conf ]; then
+            cp customfeeds.conf buildroot/
+          fi
+          cp .config buildroot/
+
+      - name: Generate custom files for LAN, timezone, password, PPPoE
+        run: |
+          cat > buildroot/files/etc/config/network <<EOF
+          config interface 'lan'
+              option device 'eth0'
+              option proto 'static'
+              option ipaddr '${LAN_IP}'
+              option netmask '255.255.255.0'
+
+          config interface 'wan'
+              option device 'eth1'
+              option proto 'pppoe'
+              option username '${PPPoE_USERNAME}'
+              option password '${PPPoE_PASSWORD}'
+          EOF
+
+          cat > buildroot/files/etc/config/system <<EOF
+          config system
+              option hostname 'OpenWrt'
+              option timezone '${TIMEZONE}'
+              option zonename '${ZONENAME}'
+          EOF
+
+          PASSWD=$(openssl passwd -1 '${PASSWORD}')
+          mkdir -p buildroot/files/etc
+          echo "root:${PASSWD}:0:0:99999:7:::" > buildroot/files/etc/shadow
+
+      - name: Build OpenWrt firmware with ImageBuilder
+        run: |
+          docker run --rm -v $PWD/buildroot:/build -w /build openwrt/imagebuilder:${USE_TAG} \
+            /bin/sh -c "
+              [ -f customfeeds.conf ] && cat customfeeds.conf >> feeds.conf.default || true
+              make defconfig
+              cp .config .config
+              make image FILES=files/
+            "
+
+      - name: Prepare Docker context with rootfs
+        run: |
+          mkdir -p docker-context
+          ROOTFS_TAR=$(find buildroot/bin/targets/ -type f -name '*rootfs.tar.gz' | head -n 1)
+          if [ -z "$ROOTFS_TAR" ]; then
+            echo "No rootfs tar.gz found! 请检查.config是否启用了Target Images -> gzipped tar archive (CONFIG_TARGET_ROOTFS_TARGZ=y)"
+            exit 1
+          fi
+          cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
+          DATE_TAG=$(date +%Y%m%d)
+          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
+          cat > docker-context/Dockerfile <<EOF
+          FROM scratch
+          ADD openwrt-rootfs.tar.gz /
+          CMD ["/sbin/init"]
+          EOF
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker-context
+          file: ./docker-context/Dockerfile
+          push: false
+          tags: openwrt-nas:${{ env.DATE_TAG }}
+
+      - name: Save Docker image as tar
+        run: |
+          docker save openwrt-nas:${DATE_TAG} -o openwrt-nas-docker-image-${DATE_TAG}.tar
+
+      - name: Upload Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-nas-docker-image-${{ env.DATE_TAG }}
+          path: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
