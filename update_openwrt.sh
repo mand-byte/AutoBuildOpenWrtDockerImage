@@ -15,17 +15,17 @@ if [ -z "$DATE_TAG" ]; then
   # 获取最新 release 的 tag 和 asset 下载链接
   release_info=$(curl -s "$api_url" | jq '.[0]')
   DATE_TAG=$(echo "$release_info" | jq -r '.tag_name')
-  asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|endswith(".tar")) | .browser_download_url')
+  asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|test("x86") and endswith(".tar")) | .browser_download_url')
   TAR_FILE=$(basename "$asset_url")
 else
   echo "指定日期为 $DATE_TAG，查找对应 release..."
   release_info=$(curl -s "$api_url/tags/$DATE_TAG")
-  asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|endswith(".tar")) | .browser_download_url')
+  asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|test("x86") and endswith(".tar")) | .browser_download_url')
   TAR_FILE=$(basename "$asset_url")
 fi
 
 if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
-  echo "未找到对应的 release 或 tar 文件！"
+  echo "未找到对应的 x86 release 或 tar 文件！"
   exit 1
 fi
 
