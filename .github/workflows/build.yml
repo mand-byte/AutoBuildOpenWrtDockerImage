@@ -26,7 +26,7 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ matrix.RUNNER }}
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         arch: [x86_64, arm64]
