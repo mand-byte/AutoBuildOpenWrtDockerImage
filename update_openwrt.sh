@@ -7,12 +7,12 @@ ARTIFACT_PREFIX="openwrt-nas-docker-image-"
 DATE_TAG="$1"
 TAR_FILE=""
 DOWNLOAD_DIR="./"
+COMPOSE_FILE="docker-compose.yml"
 
 api_url="https://api.github.com/repos/$REPO/releases"
 
 if [ -z "$DATE_TAG" ]; then
   echo "未指定日期，自动查找最新 release..."
-  # 获取最新 release 的 tag 和 asset 下载链接
   release_info=$(curl -s "$api_url" | jq '.[0]')
   DATE_TAG=$(echo "$release_info" | jq -r '.tag_name')
   asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|test("x86") and endswith(".tar")) | .browser_download_url')
@@ -32,27 +32,27 @@ fi
 echo "下载 release asset: $TAR_FILE ..."
 curl -L -o "$TAR_FILE" "$asset_url"
 
-# 停止并删除旧容器
-if docker ps -a --format '{{.Names}}' | grep -q '^openwrt$'; then
-  echo "Stopping and removing existing openwrt container..."
-  docker compose down
+echo "加载新 openwrt-nas 镜像..."
+IMAGE_ID=$(docker load -i "$TAR_FILE" | grep 'Loaded image:' | awk '{print $3}')
+# 获取镜像tag
+NEW_TAG=$(docker image inspect --format '{{index .RepoTags 0}}' "$IMAGE_ID" | awk -F: '{print $2}')
+NEW_IMAGE="openwrt-nas:$NEW_TAG"
+
+echo "修改 $COMPOSE_FILE 中的 image 字段为 $NEW_IMAGE ..."
+sed -i -E "s|image: openwrt-nas:[^ ]*|image: $NEW_IMAGE|g" "$COMPOSE_FILE"
+
+echo "停止并删除旧 openwrt 容器..."
+docker compose down || true
+
+echo "启动 openwrt..."
+if docker compose up -d; then
+  echo "Compose 启动成功，准备删除旧镜像..."
+  # 删除除新镜像外的 openwrt-nas 镜像
+  docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep '^openwrt-nas:' | grep -v "$NEW_TAG" | awk '{print $2}' | xargs -r docker rmi -f
+  echo "旧镜像已删除。"
+else
+  echo "Compose 启动失败，保留旧镜像。"
+  exit 1
 fi
-
-# 删除旧镜像（可选）
-if docker images | grep -q 'openwrt-nas'; then
-  echo "Removing old openwrt-nas image..."
-  docker rmi -f openwrt-nas:latest || true
-  if [ -n "$DATE_TAG" ]; then
-    docker rmi -f openwrt-nas:$DATE_TAG || true
-  fi
-fi
-
-# 加载新镜像
-echo "Loading new openwrt-nas docker image..."
-docker load -i "$TAR_FILE"
-
-# 启动 compose
-echo "Starting openwrt with docker-compose..."
-docker compose up -d
 
 echo "Done. OpenWrt is running with image version: $TAR_FILE"
