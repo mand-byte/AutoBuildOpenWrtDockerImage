@@ -138,12 +138,14 @@ jobs:
             echo "No rootfs tar.gz found! 请检查.config是否启用了Target Images -> gzipped tar archive (CONFIG_TARGET_ROOTFS_TARGZ=y)"
             exit 1
           fi
+          # 校验 tar 文件
+          tar -tzf "$ROOTFS_TAR" > /dev/null || { echo "rootfs tar.gz 文件损坏"; exit 1; }
           cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
           DATE_TAG=$(date +%Y%m%d)
           echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
           cat > docker-context/Dockerfile <<EOF
           FROM scratch
-          ADD openwrt-rootfs.tar.gz /
+          COPY openwrt-rootfs.tar.gz /
           CMD ["/sbin/init"]
           EOF
 
@@ -162,5 +164,5 @@ jobs:
       - name: Upload Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-nas-docker-image-${{ env.DATE_TAG }}
+          name: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
           path: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
