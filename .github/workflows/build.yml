@@ -83,31 +83,22 @@ jobs:
           cp ../.config .config
         working-directory: openwrt
 
-      - name: Prepare .config for ${{ matrix.ARCH }}
-        working-directory: openwrt
+      # 配置 OpenWrt
+      - name: Configure OpenWrt for ${{ matrix.arch }}
         run: |
-          if [ "${ARCH}" = "x86_64" ]; then
-            sed -i '/^CONFIG_TARGET_/d' .config
-            echo "CONFIG_TARGET_x86=y" >> .config
-            echo "CONFIG_TARGET_x86_64=y" >> .config
-            echo "CONFIG_TARGET_x86_64_Generic=y" >> .config
-          elif [ "${ARCH}" = "arm64" ]; then
-            sed -i '/^CONFIG_TARGET_/d' .config
-            echo "CONFIG_TARGET_armvirt=y" >> .config
-            echo "CONFIG_TARGET_armvirt_64=y" >> .config
-            echo "CONFIG_TARGET_armvirt_64_Generic=y" >> .config
+          cd openwrt
+          # 根据架构选择目标
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            echo "CONFIG_TARGET_x86_64=y" > .config
+            echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
+          elif [ "${{ matrix.arch }}" = "arm64" ]; then
+            echo "CONFIG_TARGET_armvirt_64=y" > .config
+            echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
           fi
-          echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
-
-      - name: Defconfig always
-        working-directory: openwrt
-        run: |
+          # 添加其他通用配置
+          echo "CONFIG_ALL=y" >> .config
           make defconfig
 
-      - name: Show final .config
-        working-directory: openwrt
-        run: |
-          cat .config
 
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
@@ -156,48 +147,57 @@ jobs:
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
 
-      - name: Prepare Docker context with rootfs
+      # 上传 rootfs 产物
+      - name: Upload RootFS
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-rootfs-${{ matrix.arch }}
+          path: openwrt/bin/targets/*/*/openwrt-*.tar.gz
+          retention-days: 5
+
+      # 设置 Docker 环境
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 构建 Docker 镜像并导出为 tar 文件
+      - name: Build and Export Docker Image
         run: |
-          mkdir -p docker-context
-          if [ "${ARCH}" = "x86_64" ]; then
-            ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name "*x86-64*rootfs.tar.gz" | head -n 1)
-          elif [ "${ARCH}" = "arm64" ]; then
-            ROOTFS_TAR=$(find openwrt/bin/targets/ -type f -name "*armvirt-64*rootfs.tar.gz" | head -n 1)
-          else
-            ROOTFS_TAR=""
-          fi
-          if [ -z "$ROOTFS_TAR" ]; then
-            echo "No rootfs tar.gz found! 请检查.config是否启用了Target Images -> gzipped tar archive (CONFIG_TARGET_ROOTFS_TARGZ=y)"
-            exit 1
-          fi
-          tar -tzf "$ROOTFS_TAR" > /dev/null || { echo "rootfs tar.gz 文件损坏"; exit 1; }
-          cp "$ROOTFS_TAR" docker-context/openwrt-rootfs.tar.gz
-          DATE_TAG=$(date +%Y%m%d)
-          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
-          cat > docker-context/Dockerfile <<EOF
+          cd openwrt/bin/targets/*/*/
+          # 创建 Dockerfile
+          cat <<EOF > Dockerfile
           FROM scratch
-          COPY openwrt-rootfs.tar.gz /
-          CMD ["/sbin/init"]
+          COPY openwrt-*.tar.gz /rootfs.tar.gz
+          CMD ["/bin/sh"]
           EOF
+          # 构建镜像
+          docker buildx build --platform linux/${{ matrix.arch }} \
+            -t openwrt-${{ matrix.arch }}:latest \
+            --load .
+          # 导出镜像为 tar 文件
+          docker save -o openwrt-${{ matrix.arch }}-latest.tar openwrt-${{ matrix.arch }}:latest
+          # 移动 tar 文件到固定路径
+          mkdir -p artifacts
+          mv openwrt-${{ matrix.arch }}-latest.tar artifacts/
+          # 清理
+          rm Dockerfile
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker-context
-          file: ./docker-context/Dockerfile
-          push: false
-          tags: openwrt-nas:${{ env.ARCH }}-${{ env.DATE_TAG }}
-
-      - name: Save Docker image as tar
-        run: |
-          docker save openwrt-nas:${{ env.ARCH }}-${{ env.DATE_TAG }} -o openwrt-nas-docker-image-${{ env.ARCH }}-${{ env.DATE_TAG }}.tar
-
-      - name: Upload Docker image to GitHub Release
+      # 上传 Docker 镜像 tar 文件到 Release
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
-        if: github.event_name == 'workflow_dispatch'
         with:
-          tag_name: ${{ env.DATE_TAG }}
-          name: "OpenWrt NAS Docker Image ${{ env.ARCH }} ${{ env.DATE_TAG }}.tar"
-          body: |
-            自动构建的 OpenWrt NAS Docker 镜像（${{ env.ARCH }}）。
-          files: openwrt-nas-docker-image-${{ env.ARCH }}-${{ env.DATE_TAG }}.tar
+          files: |
+            openwrt/bin/targets/*/*/openwrt-*.tar.gz
+            artifacts/openwrt-${{ matrix.arch }}-latest.tar
+          tag_name: ${{ matrix.arch }}-v${{ github.run_id }}
+          name: OpenWrt RootFS and Docker Image ${{ matrix.arch }} ${{ github.run_id }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 清理缓存以避免磁盘空间不足
+      - name: Clean Up
+        if: always()
+        run: |
+          rm -rf openwrt artifacts
