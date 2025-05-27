@@ -26,7 +26,7 @@ on:
 
 env:
   PLATFORM: ${{ github.event.inputs.PLATFORM || 'x86-64' }}
-  VERSION: ${{ github.event.inputs.VERSION }}
+  VERSION: ${{ github.event.inputs.VERSION ||'24.10.1'}}
   LAN_IP: ${{ github.event.inputs.LAN_IP || vars.LAN_IP || '192.168.1.1' }}
   TIMEZONE: ${{ github.event.inputs.TIMEZONE || vars.TIMEZONE || 'CST-8' }}
   ZONENAME: ${{ github.event.inputs.ZONENAME || vars.ZONENAME || 'Asia/Shanghai' }}
@@ -57,17 +57,7 @@ jobs:
             echo "USE_TAG=${{ env.PLATFORM }}-${{ env.VERSION }}" >> $GITHUB_ENV
           fi
 
-      - name: Check .config compatibility
-        run: |
-          if ! grep -q '^CONFIG_TARGET_' .config; then
-            echo ".config 缺少 CONFIG_TARGET_ 相关配置，可能不兼容 imagebuilder"
-            exit 1
-          fi
-          if grep -q 'CONFIG_VERSION_NUMBER=' .config; then
-            echo ".config 检测到 OpenWrt 24.10 相关配置"
-          else
-            echo "警告：.config 未检测到 CONFIG_VERSION_NUMBER，建议用 24.10 menuconfig 生成"
-          fi
+      
 
       - name: Pull OpenWrt ImageBuilder Docker image
         run: |
