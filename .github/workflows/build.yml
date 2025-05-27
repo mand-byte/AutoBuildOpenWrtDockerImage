@@ -79,11 +79,6 @@ jobs:
           cp ../.config .config
         working-directory: openwrt
 
-      - name: Defconfig always
-        working-directory: openwrt
-        run: |
-          make defconfig
-
       - name: Prepare .config for ${{ matrix.ARCH }}
         working-directory: openwrt
         run: |
@@ -99,8 +94,16 @@ jobs:
             echo "CONFIG_TARGET_armvirt_64_Generic=y" >> .config
           fi
           echo "CONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
-          # 关键：再次 defconfig，清理无关 target
+
+      - name: Defconfig always
+        working-directory: openwrt
+        run: |
           make defconfig
+
+      - name: Show final .config
+        working-directory: openwrt
+        run: |
+          cat .config
 
       - name: Customize network config (LAN & PPPoE)
         working-directory: openwrt
@@ -182,9 +185,9 @@ jobs:
       - name: Upload Docker image to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'workflow_dispatch'
-        with:
-          tag_name: ${{ env.DATE_TAG }}
-          name: "OpenWrt NAS Docker Image ${{ env.ARCH }} ${{ env.DATE_TAG }}.tar"
+        with:openwrt-nas-docker-image-${{ env.ARCH }}-${{ env.DATE_TAG }}.tar          tag_name: ${{ env.DATE_TAG }}          name: "OpenWrt NAS Docker Image ${{ env.ARCH }} ${{ env.DATE_TAG }}.tar"
+          body: |
+            自动构建的 OpenWrt NAS Docker 镜像（${{ env.ARCH }}）。
           body: |
             自动构建的 OpenWrt NAS Docker 镜像（${{ env.ARCH }}）。
           files: openwrt-nas-docker-image-${{ env.ARCH }}-${{ env.DATE_TAG }}.tar
