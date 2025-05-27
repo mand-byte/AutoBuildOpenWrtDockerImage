@@ -161,8 +161,14 @@ jobs:
         run: |
           docker save openwrt-nas:${DATE_TAG} -o openwrt-nas-docker-image-${DATE_TAG}.tar
 
-      - name: Upload Docker image as artifact
-        uses: actions/upload-artifact@v4
+      
+      
+      - name: Upload Docker image to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'workflow_dispatch'
         with:
-          name: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
-          path: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar
+          tag_name: ${{ env.DATE_TAG }}
+          name: "OpenWrt NAS Docker Image ${{ env.DATE_TAG }}.tar"
+          body: |
+            自动构建的 OpenWrt NAS Docker 镜像。
+          files: openwrt-nas-docker-image-${{ env.DATE_TAG }}.tar

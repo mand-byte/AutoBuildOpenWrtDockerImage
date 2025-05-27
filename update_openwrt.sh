@@ -8,30 +8,29 @@ DATE_TAG="$1"
 TAR_FILE=""
 DOWNLOAD_DIR="./"
 
-api_url="https://api.github.com/repos/$REPO/actions/artifacts"
+api_url="https://api.github.com/repos/$REPO/releases"
 
 if [ -z "$DATE_TAG" ]; then
-  echo "未指定日期，自动查找最新 artifact..."
-  # 获取最新 artifact 的下载链接和名字
-  artifact_url=$(curl -s "$api_url" | jq -r '.artifacts | sort_by(.id) | reverse | .[0].archive_download_url')
-  artifact_name=$(curl -s "$api_url" | jq -r '.artifacts | sort_by(.id) | reverse | .[0].name')
-  TAR_FILE="${artifact_name}.tar"
+  echo "未指定日期，自动查找最新 release..."
+  # 获取最新 release 的 tag 和 asset 下载链接
+  release_info=$(curl -s "$api_url" | jq '.[0]')
+  DATE_TAG=$(echo "$release_info" | jq -r '.tag_name')
+  asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|endswith(".tar")) | .browser_download_url')
+  TAR_FILE=$(basename "$asset_url")
 else
-  echo "指定日期为 $DATE_TAG，查找对应 artifact..."
-  artifact_name="${ARTIFACT_PREFIX}${DATE_TAG}"
-  artifact_url=$(curl -s "$api_url" | jq -r '.artifacts[] | select(.name=="'"$artifact_name"'") | .archive_download_url' | head -n1)
-  TAR_FILE="${artifact_name}.tar"
+  echo "指定日期为 $DATE_TAG，查找对应 release..."
+  release_info=$(curl -s "$api_url/tags/$DATE_TAG")
+  asset_url=$(echo "$release_info" | jq -r '.assets[] | select(.name|endswith(".tar")) | .browser_download_url')
+  TAR_FILE=$(basename "$asset_url")
 fi
 
-if [ -z "$artifact_url" ]; then
-  echo "未找到对应的 artifact！"
+if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
+  echo "未找到对应的 release 或 tar 文件！"
   exit 1
 fi
 
-echo "下载 artifact zip..."
-curl -L -o artifact.zip "$artifact_url"
-unzip -o artifact.zip
-rm artifact.zip
+echo "下载 release asset: $TAR_FILE ..."
+curl -L -o "$TAR_FILE" "$asset_url"
 
 # 停止并删除旧容器
 if docker ps -a --format '{{.Names}}' | grep -q '^openwrt$'; then
