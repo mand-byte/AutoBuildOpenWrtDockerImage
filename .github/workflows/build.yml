@@ -121,7 +121,6 @@ jobs:
           cat << EOF > Dockerfile
           FROM scratch
           ADD $ROOTFS_PATH /
-          RUN mkdir /var/lock && opkg update || true
           CMD ["/sbin/init"]
           EOF
 

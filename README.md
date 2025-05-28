@@ -42,7 +42,7 @@ docker cp openwrt:/etc/config /your/path/openwrt-config
 version: '3.8'
 services:
   openwrt:
-    image: openwrt-nas:latest
+    image: openwrt-x86_64:latest
     container_name: openwrt
     privileged: true
     networks:
