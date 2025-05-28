@@ -133,7 +133,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            openwrt/bin/targets/*/*/openwrt-*.tar.gz
             artifacts/openwrt-${{ matrix.arch }}-latest.tar
           tag_name: ${{ matrix.arch }}-v${{ github.run_id }}
           name: OpenWrt RootFS and Docker Image ${{ matrix.arch }} ${{ github.run_id }}
