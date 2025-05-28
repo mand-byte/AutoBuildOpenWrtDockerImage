@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        arch: [x86_64, arm64]
+        arch: [x86_64, armsr_armv8]
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -70,7 +70,7 @@ jobs:
           # 根据架构选择目标
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             echo -e "\nCONFIG_TARGET_x86=y\nCONFIG_TARGET_x86_64=y\nCONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
-          elif [ "${{ matrix.arch }}" = "arm64" ]; then
+          elif [ "${{ matrix.arch }}" = "armsr_armv8" ]; then
             echo -e "\nCONFIG_TARGET_armsr=y\nCONFIG_TARGET_armsr_armv8=y\nCONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
           fi
           make defconfig
