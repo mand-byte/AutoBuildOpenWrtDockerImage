@@ -26,10 +26,10 @@
 ./update_openwrt.sh [YYYYMMDD]  # 不填日期则下载最新
 ```
 
-### 2. 导入 Docker 镜像
+### 2. 删除容器并拉取后运行示例
 
 ```bash
-docker load -i openwrt-nas-docker-image-YYYYMMDD.tar
+docker run --rm -it ghcr.io/yourname/openwrt-x86_64:latest
 ```
 
 ### 3. 持久化配置
