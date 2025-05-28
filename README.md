@@ -18,13 +18,11 @@
 ## 快速开始
 
 ### 1. 获取镜像
-
-前往 [Actions 页面](https://github.com/mand-byte/AutoBuildOpenWrtDockerImage/actions) 下载最新 `openwrt-nas-docker-image-YYYYMMDD.tar`，或运行自动化脚本：
-
 ```bash
-# 需安装 jq、curl、unzip
-./update_openwrt.sh [YYYYMMDD]  # 不填日期则下载最新
+docker pull ghcr.io/yourname/openwrt-x86_64:latest
 ```
+```bash
+
 
 ### 2. 删除容器并拉取后运行示例
 
@@ -74,19 +72,13 @@ networks:
 ## 自动化流程
 
 - 每月1日自动构建，可手动触发
-- 步骤涵盖源码拉取、插件集成、定制配置、镜像打包与上传
-- 构建产物带日期版本号，便于历史回溯
-
+- 步骤涵盖源码拉取、插件集成、定制配置、镜像打包与上传到ghcr.io
 ---
 
 ## 常见问题解答
 
 - **容器内内核是 OpenWrt 吗？**  
   不是，容器实际运行宿主机 Linux 内核，OpenWrt 仅为用户空间环境。
-
-- **如何回滚历史版本？**  
-  下载指定日期 tar 包，`docker load` 后用 compose 启动即可。
-
 ---
 
 ## 免责声明
