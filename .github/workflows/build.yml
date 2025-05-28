@@ -121,9 +121,9 @@ jobs:
             --load .
           # 导出镜像为 tar 文件
           docker save -o openwrt-${{ matrix.arch }}-latest.tar openwrt-${{ matrix.arch }}:latest
-          # 移动 tar 文件到固定路径
-          mkdir -p artifacts
-          mv openwrt-${{ matrix.arch }}-latest.tar artifacts/
+          # 移动 tar 文件到 workflow 根目录 artifacts/
+          mkdir -p ../../../artifacts
+          mv openwrt-${{ matrix.arch }}-latest.tar ../../../artifacts/
           # 清理
           rm Dockerfile
 
