@@ -16,8 +16,11 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        arch: [x86_64, armsr_armv8]
-        docker_platform: [amd64, arm64]
+        include:
+          - arch: x86_64
+            docker_platform: amd64
+          - arch: armsr_armv8
+            docker_platform: arm64
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
