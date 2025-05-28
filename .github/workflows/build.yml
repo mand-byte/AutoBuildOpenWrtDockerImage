@@ -93,58 +93,38 @@ jobs:
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
 
-      # 上传 rootfs 产物
-      - name: Upload RootFS
-        uses: actions/upload-artifact@v4
-        with:
-          name: openwrt-rootfs-${{ matrix.arch }}
-          path: openwrt/bin/targets/*/*/openwrt-*.tar.gz
-          retention-days: 5
+      
 
       # 设置 Docker 环境
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 构建 Docker 镜像并导出为 tar 文件
-      - name: Build and Export Docker Image
+      # 查找 rootfs 路径
+      - name: Locate rootfs
+        id: locate-rootfs
         run: |
-          cd openwrt/bin/targets/*/*/
-          # 创建 Dockerfile
-          cat <<EOF > Dockerfile
-          FROM scratch
-          COPY openwrt-*.tar.gz /rootfs.tar.gz
-          CMD ["/bin/sh"]
-          EOF
-          # 构建镜像
-          docker buildx build --platform linux/${{ matrix.arch }} \
-            -t openwrt-${{ matrix.arch }}:latest \
-            --load .
-          # 导出镜像为 tar 文件
-          docker save -o openwrt-${{ matrix.arch }}-latest.tar openwrt-${{ matrix.arch }}:latest
-          # 移动 tar 文件到 workflow 根目录 artifacts/
-          mkdir -p ../../../artifacts
-          mv openwrt-${{ matrix.arch }}-latest.tar ../../../artifacts/
-          # 清理
-          rm Dockerfile
-      - name: List artifacts
-        run: ls -lh artifacts/
-      # 上传 Docker 镜像 tar 文件到 Release
-      - name: Create Release
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        
-        with:
-          files: |
-            artifacts/openwrt-${{ matrix.arch }}-latest.tar
-          tag_name: ${{ matrix.arch }}-v${{ github.run_id }}
-          name: OpenWrt RootFS and Docker Image ${{ matrix.arch }} ${{ github.run_id }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ROOTFS_PATH=$(find openwrt/bin/targets -name "openwrt-*.tar.gz" | head -n1)
+          echo "rootfs-path=$ROOTFS_PATH" >> $GITHUB_OUTPUT
 
-      # 清理缓存以避免磁盘空间不足
-      - name: Clean Up
-        if: always()
+      # 登录 GitHub Container Registry
+      - name: Login to ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # 构建并推送 Docker 镜像
+      - name: Build and push Docker image
         run: |
-          rm -rf openwrt artifacts
+          ROOTFS_PATH=${{ steps.locate-rootfs.outputs.rootfs-path }}
+          DOCKER_IMAGE=ghcr.io/${{ github.repository_owner }}/openwrt-${{ matrix.arch }}:${{ github.sha }}
+          DOCKER_IMAGE_LATEST=ghcr.io/${{ github.repository_owner }}/openwrt-${{ matrix.arch }}:latest
+
+          # 创建 Dockerfile
+          cat << EOF > Dockerfile
+          FROM scratch
+          ADD $ROOTFS_PATH /
+          RUN mkdir /var/lock && opkg update || true
+          CMD ["/sbin/init"]
+          EOF
+
+          docker buildx build --platform linux/${{ matrix.arch }} \
+            -t $DOCKER_IMAGE -t $DOCKER_IMAGE_LATEST --push .
+      
