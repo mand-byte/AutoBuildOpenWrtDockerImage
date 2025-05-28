@@ -109,21 +109,10 @@ jobs:
       # 登录 GitHub Container Registry
       - name: Login to ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      # 推送前将旧的 latest 镜像 retag 为日期
-      - name: Retag previous latest with date
-        run: |
-          IMAGE=ghcr.io/${{ github.repository_owner }}/openwrt-${{ matrix.arch }}
-          DATE=$(date +%Y%m%d%H%M%S)
-          # 拉取 latest，如果存在则打上日期 tag 并推送
-          if docker pull $IMAGE:latest; then
-            docker tag $IMAGE:latest $IMAGE:$DATE
-            docker push $IMAGE:$DATE
-          fi
-      # 构建并推送 Docker 镜像
+
       - name: Build and push Docker image
         run: |
           ROOTFS_PATH=${{ steps.locate-rootfs.outputs.rootfs-path }}
-          DOCKER_IMAGE=ghcr.io/${{ github.repository_owner }}/openwrt-${{ matrix.arch }}:${{ github.sha }}
           DOCKER_IMAGE_LATEST=ghcr.io/${{ github.repository_owner }}/openwrt-${{ matrix.arch }}:latest
 
           # 创建 Dockerfile
@@ -134,12 +123,4 @@ jobs:
           EOF
 
           docker buildx build --platform linux/${{ matrix.arch }} \
-            -t $DOCKER_IMAGE -t $DOCKER_IMAGE_LATEST --push .
-      #保留最新三个月的历史镜像，自动删除多余的
-      - name: Delete old images, keep latest 90 days
-        uses: snok/container-retention-policy@v2
-        with:
-          image-names: openwrt-${{ matrix.arch }}
-          cut-off: 90 days ago UTC
-          token: ${{ secrets.GITHUB_TOKEN }}
-          account-type: personal
+            -t $DOCKER_IMAGE_LATEST --push .
