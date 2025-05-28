@@ -126,11 +126,13 @@ jobs:
           mv openwrt-${{ matrix.arch }}-latest.tar ../../../artifacts/
           # 清理
           rm Dockerfile
-
+      - name: List artifacts
+        run: ls -lh artifacts/
       # 上传 Docker 镜像 tar 文件到 Release
       - name: Create Release
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
+        
         with:
           files: |
             artifacts/openwrt-${{ matrix.arch }}-latest.tar
