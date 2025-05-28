@@ -140,6 +140,6 @@ jobs:
         uses: snok/container-retention-policy@v2
         with:
           image-names: openwrt-${{ matrix.arch }}
-          cut-off: 90 days
+          cut-off: 90d
           token: ${{ secrets.GITHUB_TOKEN }}
           account-type: personal
