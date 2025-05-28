@@ -135,11 +135,11 @@ jobs:
 
           docker buildx build --platform linux/${{ matrix.arch }} \
             -t $DOCKER_IMAGE -t $DOCKER_IMAGE_LATEST --push .
-      #保留最新5个历史镜像，自动删除多余的
-      - name: Delete old images, keep latest 5
+      #保留最新三个月的历史镜像，自动删除多余的
+      - name: Delete old images, keep latest 90 days
         uses: snok/container-retention-policy@v2
         with:
           image-names: openwrt-${{ matrix.arch }}
-          cut-off: 5
+          cut-off: 90 days
           token: ${{ secrets.GITHUB_TOKEN }}
-          account-type: user
+          account-type: personal
