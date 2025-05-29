@@ -61,7 +61,7 @@ jobs:
       
       - name: Copy custom .config
         run: |
-          cp ../.config >> .config
+          cp ../.config   .config
         working-directory: openwrt
 
       
