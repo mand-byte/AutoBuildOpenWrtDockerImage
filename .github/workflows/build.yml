@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        arch: x86_64
+        arch: 
+          - x86_64
           
     steps:
       - name: Checkout this repo
