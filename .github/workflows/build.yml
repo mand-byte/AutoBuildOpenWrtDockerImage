@@ -1,15 +1,6 @@
 name: Build OpenWrt Docker Image (for NAS)
 
-on:
-  workflow_dispatch:
-    inputs:
-      LAN_IP:
-        description: 'LAN IP Address'
-        required: false
-        default: '192.168.1.1'
 
-env:
-  LAN_IP: ${{ github.event.inputs.LAN_IP }}
 
 jobs:
   build:
@@ -64,20 +55,7 @@ jobs:
           cp ../.config   .config
         working-directory: openwrt
 
-      
 
-
-      - name: Customize network config (LAN & PPPoE)
-        working-directory: openwrt
-        run: |
-          mkdir -p files/etc/config
-          cat > files/etc/config/network <<EOF
-          config interface 'lan'
-              option ifname 'eth0'
-              option proto 'static'
-              option ipaddr '${LAN_IP}'
-              option netmask '255.255.255.0'
-          EOF
       - name: Install qemu-utils
         run: sudo apt-get update && sudo apt-get install -y qemu-utils
       - name: Build firmware
