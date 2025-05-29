@@ -1,6 +1,9 @@
 name: Build OpenWrt Image (for NAS)
 
-
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
