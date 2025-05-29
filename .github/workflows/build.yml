@@ -16,11 +16,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        include:
-          - arch: x86_64
-            docker_platform: amd64
-          - arch: armsr_armv8
-            docker_platform: arm64
+        arch: x86_64
+          
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -63,21 +60,10 @@ jobs:
       
       - name: Copy custom .config
         run: |
-          cat ../.config >> .config
+          cp ../.config >> .config
         working-directory: openwrt
 
-      # 配置 OpenWrt
-      - name: Configure OpenWrt for ${{ matrix.arch }}
-        run: |
-          cd openwrt
-          
-          # 根据架构选择目标
-          if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            echo -e "\nCONFIG_TARGET_x86=y\nCONFIG_TARGET_x86_64=y\nCONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
-          elif [ "${{ matrix.arch }}" = "armsr_armv8" ]; then
-            echo -e "\nCONFIG_TARGET_armsr=y\nCONFIG_TARGET_armsr_armv8=y\nCONFIG_TARGET_ROOTFS_TARGZ=y" >> .config
-          fi
-          make defconfig
+      
 
 
       - name: Customize network config (LAN & PPPoE)
@@ -97,34 +83,11 @@ jobs:
           make -j$(nproc) download V=s || make -j1 V=s download
           make -j$(nproc) V=s
 
+      - name: Upload firmware to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-firmware
+          path: openwrt/bin/targets
       
 
-      # 设置 Docker 环境
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # 查找 rootfs 路径
-      - name: Locate rootfs
-        id: locate-rootfs
-        run: |
-          ROOTFS_PATH=$(find openwrt/bin/targets -name "openwrt-*${{ matrix.arch }}*.tar.gz" | head -n1)
-          echo "rootfs-path=$ROOTFS_PATH" >> $GITHUB_OUTPUT
-
-      # 登录 GitHub Container Registry
-      - name: Login to ghcr.io
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build and push Docker image
-        run: |
-          ROOTFS_PATH=${{ steps.locate-rootfs.outputs.rootfs-path }}
-          DOCKER_IMAGE_LATEST=ghcr.io/${{ github.repository_owner }}/openwrt-${{ matrix.arch }}:latest
-
-          # 创建 Dockerfile
-          cat << EOF > Dockerfile
-          FROM scratch
-          ADD $ROOTFS_PATH /
-          CMD ["/sbin/init"]
-          EOF
-
-          docker buildx build --platform linux/${{ matrix.docker_platform }} \
-            -t $DOCKER_IMAGE_LATEST --push .
+      
