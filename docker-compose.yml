@@ -2,7 +2,7 @@
 version: '3.8'
 services:
   openwrt:
-    image: openwrt-x86_64:latest
+    image: openwrt-nas:latest
     container_name: openwrt
     privileged: true
     networks:

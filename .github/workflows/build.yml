@@ -107,7 +107,7 @@ jobs:
       - name: Locate rootfs
         id: locate-rootfs
         run: |
-          ROOTFS_PATH=$(find openwrt/bin/targets -name "openwrt-*.tar.gz" | head -n1)
+          ROOTFS_PATH=$(find openwrt/bin/targets -name "openwrt-*${{ matrix.arch }}*.tar.gz" | head -n1)
           echo "rootfs-path=$ROOTFS_PATH" >> $GITHUB_OUTPUT
 
       # 登录 GitHub Container Registry
