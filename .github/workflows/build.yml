@@ -78,6 +78,8 @@ jobs:
               option ipaddr '${LAN_IP}'
               option netmask '255.255.255.0'
           EOF
+      - name: Install qemu-utils
+        run: sudo apt-get update && sudo apt-get install -y qemu-utils
       - name: Build firmware
         working-directory: openwrt
         run: |
