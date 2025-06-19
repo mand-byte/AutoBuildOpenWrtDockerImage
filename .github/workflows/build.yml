@@ -22,14 +22,6 @@ jobs:
             libncursesw5-dev libssl-dev python3 \
             python3-setuptools python3-dev rsync subversion swig \
             unzip wget file time xsltproc zlib1g-dev
-      - name: Install Go 1.24
-        run: |
-          wget https://go.dev/dl/go1.24.4.linux-amd64.tar.gz
-          sudo rm -rf /usr/local/go
-          sudo tar -C /usr/local -xzf go1.24.4.linux-amd64.tar.gz
-          echo "/usr/local/go/bin" >> $GITHUB_PATH
-          export PATH=/usr/local/go/bin:$PATH
-          go version
       - name: Clone OpenWrt source code
         run: |
           git clone https://github.com/openwrt/openwrt.git
