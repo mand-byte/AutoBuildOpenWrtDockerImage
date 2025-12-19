@@ -1,72 +1,65 @@
-name: Build OpenWrt Image (for NAS)
+name: Build OpenWrt v24.10.4 for x86-64
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
+
 jobs:
   build:
-    runs-on: ubuntu-22.04
-          
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential ccache clang flex bison g++ gawk \
-            gcc-multilib g++-multilib gettext git libncurses5-dev \
-            libncursesw5-dev libssl-dev python3 \
-            python3-setuptools python3-dev rsync subversion swig \
-            unzip wget file time xsltproc zlib1g-dev
-      - name: Clone OpenWrt source code
-        run: |
-          git clone https://github.com/openwrt/openwrt.git
-          cd openwrt
-          git fetch --tags
-          # 获取最新 openwrt-x.y.z tag（不带rc）
-          TAG=$(git tag | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | grep -v rc | tail -n1)
-          if [ -z "$TAG" ]; then
-            echo "No stable tag found!"
-            exit 1
-          fi
-          echo "Switching to tag: $TAG"
-          git checkout $TAG
-      - name: Add custom feeds
-        working-directory: openwrt
-        run: |
-          if [ -f ../customfeeds.conf ]; then
-            cat ../customfeeds.conf >> feeds.conf.default
-          fi
+    - name: Update and install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential ccache ecj fastjar file g++ gawk \
+          gettext git java-propose-classpath java-wrappers jq libelf-dev libffi-dev \
+          libncurses5-dev libncursesw5-dev libssl-dev python3 python3-pyelftools \
+          python3-setuptools unzip wget python3-dev zlib1g-dev bison flex \
+          subversion quilt xsltproc gperf gengetopt liberror-perl \
+          libgmp3-dev libmpc-dev libmpfr-dev texinfo patch curl \
+          autoconf automake libtool pkg-config rsync kmod
 
-      - name: Update and install custom feeds
-        working-directory: openwrt
-        run: |
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-      
-      - name: Copy custom .config
-        run: |
-          cp ../.config   .config
-        working-directory: openwrt
+    - name: Checkout OpenWrt source
+      run: |
+        git clone https://git.openwrt.org/openwrt/openwrt.git
+        cd openwrt
+        git checkout v24.10.4
 
+    - name: Update feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+    
+    - name: Copy custom .config
+      run: |
+        cp ../.config   .config
+      working-directory: openwrt
+    
+    - name: Load default configuration for x86-64
+      run: |
+        cd openwrt
+        make defconfig
 
-      - name: Install qemu-utils
-        run: sudo apt-get update && sudo apt-get install -y qemu-utils
-      - name: Build firmware
-        working-directory: openwrt
-        run: |
-          make -j$(nproc) download V=s || make -j1 V=s download
-          make -j$(nproc) V=s
+    - name: Download dependencies
+      run: |
+        cd openwrt
+        make download -j$(nproc)
 
-      - name: Upload firmware to GitHub Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: openwrt-firmware
-          path: openwrt/bin/targets
+    - name: Build OpenWrt
+      run: |
+        cd openwrt
+        make -j$(nproc) V=s
 
-
-
+    - name: Upload firmware artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-firmware
+        path: openwrt/bin/targets/x86/64/*
