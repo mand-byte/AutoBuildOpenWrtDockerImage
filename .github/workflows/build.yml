@@ -40,15 +40,15 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
     
-    - name: Copy custom .config
-      run: |
-        cp ../.config   .config
-      working-directory: openwrt
-    
     - name: Load default configuration for x86-64
       run: |
         cd openwrt
         make defconfig
+        
+    - name: Copy custom .config
+      run: |
+        cp ../.config   .config
+      working-directory: openwrt
 
     - name: Download dependencies
       run: |
