@@ -30,7 +30,8 @@ jobs:
       run: |
         git clone https://git.openwrt.org/openwrt/openwrt.git
         cd openwrt
-        git checkout v24.10.4
+        git fetch origin
+        git checkout -b openwrt-24.10 origin/openwrt-24.10
 
     - name: Update feeds
       run: |
