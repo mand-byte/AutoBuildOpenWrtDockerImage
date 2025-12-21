@@ -22,10 +22,13 @@ jobs:
     - name: Update and install dependencies
       run: |
         sudo apt update
-        sudo apt install -y build-essential clang flex bison g++ gawk \
-          gettext git libncurses5-dev libssl-dev python3-distutils \
-          python3-setuptools python3-dev rsync unzip zlib1g-dev \
-          libelf-dev file wget python3-pyelftools qemu-utils
+        sudo apt install -y build-essential ccache ecj fastjar file g++ gawk \
+          gettext git java-propose-classpath java-wrappers jq libelf-dev libffi-dev \
+          libncurses5-dev libncursesw5-dev libssl-dev python3 python3-pyelftools \
+          python3-setuptools unzip wget python3-dev zlib1g-dev bison flex \
+          subversion quilt xsltproc gperf gengetopt liberror-perl \
+          libgmp3-dev libmpc-dev libmpfr-dev texinfo patch curl \
+          autoconf automake libtool pkg-config rsync kmod
 
     - name: Checkout OpenWrt source
       run: |
