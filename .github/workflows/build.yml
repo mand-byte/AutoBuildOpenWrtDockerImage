@@ -1,45 +1,46 @@
-name: Build OpenWrt v24.10.4 for x86-64
+name: Build OpenWrt for x86-64
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动触发
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # 建议使用 24.04 匹配最新工具链
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+
     - name: Update and install dependencies
       run: |
         sudo apt update
-        sudo apt install -y build-essential ccache ecj fastjar file g++ gawk \
-          gettext git java-propose-classpath java-wrappers jq libelf-dev libffi-dev \
-          libncurses5-dev libncursesw5-dev libssl-dev python3 python3-pyelftools \
-          python3-setuptools unzip wget python3-dev zlib1g-dev bison flex \
-          subversion quilt xsltproc gperf gengetopt liberror-perl \
-          libgmp3-dev libmpc-dev libmpfr-dev texinfo patch curl \
-          autoconf automake libtool pkg-config rsync kmod
+        sudo apt install -y build-essential clang flex bison g++ gawk \
+          gettext git libncurses5-dev libssl-dev python3-distutils \
+          python3-setuptools python3-dev rsync unzip zlib1g-dev \
+          libelf-dev file wget python3-pyelftools qemu-utils
 
     - name: Checkout OpenWrt source
       run: |
-        git clone https://git.openwrt.org/openwrt/openwrt.git
+        # 1. 克隆代码并指定 Tag
+        git clone --depth 1 --branch v24.10.5 github.com openwrt
         cd openwrt
-        git fetch origin
-        git checkout -b openwrt-24.10 origin/openwrt-24.10
-        git pull
+        # 确保 HEAD 处于 v24.10.5 状态
+        git checkout v24.10.5
 
-    - name: Update feeds
+    - name: Update and install feeds
       run: |
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-    
+
     - name: Load default configuration for x86-64
       run: |
         cd openwrt
@@ -58,10 +59,14 @@ jobs:
     - name: Build OpenWrt
       run: |
         cd openwrt
-        make -j$(nproc) V=s
-
+        # 第一次建议使用单线程排错，或 -j$(nproc) 快速编译
+        make -j$(nproc) || make -j1 V=s
+      
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: openwrt-firmware
-        path: openwrt/bin/targets/x86/64/*
+        name: OpenWrt_v24.10.5_Firmware
+        path: |
+          openwrt/bin/targets/x86/64/*
+          !openwrt/bin/targets/x86/64/*.buildinfo
+          !openwrt/bin/targets/x86/64/*.manifest
