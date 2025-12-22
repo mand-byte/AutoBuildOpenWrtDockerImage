@@ -49,33 +49,6 @@ jobs:
         cd openwrt
         ./scripts/feeds update -a
     
-    # - name: Upgrade feeds golang (Go >= 1.24)
-    #   run: |
-    #     cd openwrt/feeds/packages/lang/golang
-    #     git fetch
-    #     git checkout master
-    - name: Upgrade Go to latest version
-      run: |
-        set -e
-        cd openwrt/feeds/packages/lang/golang
-    
-        # 获取最新 Golang 版本号
-        LATEST=$(curl -s https://go.dev/VERSION?m=text)
-    
-        echo "Latest Go version: $LATEST"
-    
-        # 下载官方 tar.gz 源码包
-        wget -q https://go.dev/dl/go${LATEST}.src.tar.gz -O go.src.tar.gz
-    
-        # 清空旧源码
-        rm -rf ./*
-    
-        # 解压源码
-        tar -xzf go.src.tar.gz --strip-components=1
-    
-        # 清理下载包
-        rm go.src.tar.gz
-    
     - name: Install feeds
       run: |
         cd openwrt
