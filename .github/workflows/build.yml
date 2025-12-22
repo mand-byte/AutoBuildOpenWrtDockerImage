@@ -82,11 +82,11 @@ jobs:
         sh ./scripts/config set CONFIG_TARGET_x86_64_DEVICE_generic=y
 
         # 关闭 ext4 镜像
-        sh ./scripts/config unset CONFIG_TARGET_ROOTFS_EXT4FS
-
+        #sh ./scripts/config unset CONFIG_TARGET_ROOTFS_EXT4FS
+        sh ./scripts/config unset CONFIG_TARGET_ROOTFS_EXT4
         # 关闭 grub 镜像
-        sh ./scripts/config unset CONFIG_GRUB_IMAGES
-
+        #sh ./scripts/config unset CONFIG_GRUB_IMAGES
+        sh ./scripts/config unset CONFIG_TARGET_IMAGES_GRUB
         # 设置 rootfs 分区大小（单位 MB）
         sh ./scripts/config set CONFIG_TARGET_ROOTFS_PARTSIZE 1024
 
@@ -141,7 +141,7 @@ jobs:
         #编辑器
         sh ./scripts/config set CONFIG_PACKAGE_nano-plus=y
         
-        #make defconfig
+        make defconfig
     
     # - name: Copy custom .config 
     #   run: | 
