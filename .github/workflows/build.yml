@@ -141,7 +141,7 @@ jobs:
         #编辑器
         sh ./scripts/config set CONFIG_PACKAGE_nano-plus=y
         
-        make defconfig
+        #make defconfig
     
     # - name: Copy custom .config 
     #   run: | 
