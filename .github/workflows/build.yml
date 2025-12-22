@@ -38,44 +38,110 @@ jobs:
         # 确保 HEAD 处于 v24.10.5 状态
         git checkout v24.10.5
     
-    # - name: Add custom feeds for Passwall
-    #   run: |
-    #     cd openwrt
-    #     echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages" >> feeds.conf.default
-    #     echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2" >> feeds.conf.default
+    - name: Add custom feeds for Passwall
+      run: |
+        cd openwrt
+        echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages" >> feeds.conf.default
+        echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2" >> feeds.conf.default
     
     - name: Update feeds
       run: |
         cd openwrt
         ./scripts/feeds update -a
     
-    # - name: Upgrade feeds golang (Go >= 1.24)
-    #   run: |
-    #     cd openwrt/feeds/packages/lang/golang
-    #     git fetch
-    #     git checkout master
+    - name: Upgrade feeds golang (Go >= 1.24)
+      run: |
+        cd openwrt/feeds/packages/lang/golang
+        git fetch
+        git checkout master
         
     - name: Install feeds
       run: |
         cd openwrt
         ./scripts/feeds install -a
 
-    # - name: Clean golang & geoview
-    #   run: |
-    #     cd openwrt
-    #     make package/golang/clean
-    #     make package/geoview/clean || true
-
-    - name: Load default configuration for x86-64
+    - name: Clean golang & geoview
       run: |
         cd openwrt
-        make defconfig
-        
-    - name: Copy custom .config
+        make package/golang/clean
+        make package/geoview/clean || true
+
+    - name: Customize OpenWrt config (x86-64 generic)
       run: |
-        cp ../.config   .config
-      working-directory: openwrt
+        cd openwrt
+
+        # 使用 scripts/config 修改配置
+        ./scripts/config set CONFIG_TARGET_x86=y
+        ./scripts/config set CONFIG_TARGET_x86_64=y
+        ./scripts/config set CONFIG_TARGET_x86_64_DEVICE_generic=y
+
+        # 关闭 ext4 镜像
+        ./scripts/config unset CONFIG_TARGET_ROOTFS_EXT4FS
+
+        # 关闭 grub 镜像
+        ./scripts/config unset CONFIG_GRUB_IMAGES
+
+        # 设置 rootfs 分区大小（单位 MB）
+        ./scripts/config set CONFIG_TARGET_ROOTFS_PARTSIZE 1024
+
+        #### DNS
+        ./scripts/config unset CONFIG_PACKAGE_dnsmasq
+        ./scripts/config set   CONFIG_PACKAGE_dnsmasq-full=y
+
+        #### LuCI web stack: nginx + openssl
+        ./scripts/config set   CONFIG_PACKAGE_luci-nginx=y
+        ./scripts/config set   CONFIG_PACKAGE_luci-ssl-openssl=y
+
+        # 防止被自动拉回 uhttpd
+        ./scripts/config unset CONFIG_PACKAGE_luci-ssl
+        ./scripts/config unset CONFIG_PACKAGE_luci-uhttpd
+
+        #### LuCI Simplified Chinese
+        ./scripts/config set CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+
+        #### LuCI applications
+        ./scripts/config set CONFIG_PACKAGE_luci-app-ddns=y
+        ./scripts/config set CONFIG_PACKAGE_luci-app-nlbwmon=y
+        ./scripts/config set CONFIG_PACKAGE_luci-app-passwall2=y
+        ./scripts/config set CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y
+        ./scripts/config set CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Haproxy=y
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Libev_Client
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Libev_Server
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Client
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Server
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_ShadowsocksR_Libev_Client
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_ShadowsocksR_Libev_Server
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Simple_Obfs
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_SingBox
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_tuic_client
+        ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_V2ray_Plugin
+        ./scripts/config set CONFIG_PACKAGE_luci-app-upnp=y
+        
+        #### DDNS provider: Cloudflare
+        ./scripts/config set CONFIG_PACKAGE_ddns-scripts-cloudflare
+        
+        # 9. OpenSSH
+        ./scripts/config set CONFIG_PACKAGE_openssh-client=y
+        ./scripts/config set CONFIG_PACKAGE_openssh-server=y
+        ./scripts/config set CONFIG_PACKAGE_openssh-sftp-client=y
+        ./scripts/config set CONFIG_PACKAGE_openssh-sftp-server=y
+        
+        # 内核模块
+        ./scripts/config set CONFIG_PACKAGE_kmod-tcp-bbr=y
+        ./scripts/config set CONFIG_PACKAGE_kmod-nft-socket=y
+        ./scripts/config set CONFIG_PACKAGE_kmod-nft-tproxy=y
+        #编辑器
+        ./scripts/config set CONFIG_PACKAGE_nano-plus=y
+        
+        make defconfig
     
+    # - name: Copy custom .config 
+    #   run: | 
+    #     cp ../.config .config 
+    #   working-directory: openwrt
+      
     - name: Download dependencies
       run: |
         cd openwrt
