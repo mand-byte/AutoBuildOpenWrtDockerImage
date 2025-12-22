@@ -44,11 +44,27 @@ jobs:
         echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages" >> feeds.conf.default
         echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2" >> feeds.conf.default
     
-    - name: Update and install feeds
+    - name: Update feeds
       run: |
         cd openwrt
         ./scripts/feeds update -a
+    
+    - name: Upgrade feeds golang (Go >= 1.24)
+      run: |
+        cd openwrt/feeds/packages/lang/golang
+        git fetch
+        git checkout master
+        
+    - name: Install feeds
+      run: |
+        cd openwrt
         ./scripts/feeds install -a
+
+    - name: Clean golang & geoview
+      run: |
+        cd openwrt
+        make package/golang/clean
+        make package/geoview/clean || true
 
     - name: Load default configuration for x86-64
       run: |
@@ -59,7 +75,7 @@ jobs:
       run: |
         cp ../.config   .config
       working-directory: openwrt
-
+    
     - name: Download dependencies
       run: |
         cd openwrt
@@ -74,7 +90,7 @@ jobs:
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: OpenWrt_v24.10.5_Firmware
+        name: OpenWrt_Firmware
         path: |
           openwrt/bin/targets/x86/64/*
           !openwrt/bin/targets/x86/64/*.buildinfo
