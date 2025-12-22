@@ -60,24 +60,20 @@ jobs:
         cd openwrt
         ./scripts/feeds install -a
     
-    - name: Disable QUIC in haproxy (OpenSSL incompatibility)
+    - name: Disable QUIC in haproxy (fix OpenSSL build)
       run: |
         cd openwrt
 
-        PATCH_DIR="feeds/packages/net/haproxy/patches"
-        mkdir -p "$PATCH_DIR"
+        FILE="feeds/packages/net/haproxy/Makefile"
 
-        cat > "$PATCH_DIR/999-disable-quic.patch" << 'EOF'
-        --- a/Makefile
-        +++ b/Makefile
-        @@
-         ifeq ($(BUILD_VARIANT),ssl)
-         	ADDON+=USE_OPENSSL=1
-         	ADDON+=ADDLIB="-lcrypto -lm"
-        -	ADDON+=USE_QUIC=1
-        +	ADDON+=USE_QUIC=0
-         endif
-        EOF
+        echo "Before:"
+        grep -n "USE_QUIC" "$FILE" || true
+
+        # 查找并替换
+        sed -i 's/ADDON+=USE_QUIC=1/ADDON+=USE_QUIC=0/' "$FILE"
+
+        echo "After:"
+        grep -n "USE_QUIC" "$FILE" || true
     
     - name: Copy custom .config 
       run: | 
