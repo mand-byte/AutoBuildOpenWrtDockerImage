@@ -60,11 +60,11 @@ jobs:
         cd openwrt
         ./scripts/feeds install -a
 
-    - name: Clean golang & geoview
-      run: |
-        cd openwrt
-        make package/golang/clean
-        make package/geoview/clean || true
+    # - name: Clean golang & geoview
+    #   run: |
+    #     cd openwrt
+    #     make package/golang/clean
+    #     make package/geoview/clean || true
 
     - name: Customize OpenWrt config (x86-64 generic)
       run: |
