@@ -74,74 +74,65 @@ jobs:
     - name: Customize OpenWrt config (x86-64 generic)
       run: |
         cd openwrt
-        # 确保 scripts/config 可执行
-        chmod +x scripts/config
-        # 使用 scripts/config 修改配置
-        sh ./scripts/config set CONFIG_TARGET_x86=y
-        sh ./scripts/config set CONFIG_TARGET_x86_64=y
-        sh ./scripts/config set CONFIG_TARGET_x86_64_DEVICE_generic=y
-
-        # 关闭 ext4 镜像
-        #sh ./scripts/config unset CONFIG_TARGET_ROOTFS_EXT4FS
-        sh ./scripts/config unset CONFIG_TARGET_ROOTFS_EXT4
-        # 关闭 grub 镜像
-        #sh ./scripts/config unset CONFIG_GRUB_IMAGES
-        sh ./scripts/config unset CONFIG_TARGET_IMAGES_GRUB
-        # 设置 rootfs 分区大小（单位 MB）
-        sh ./scripts/config set CONFIG_TARGET_ROOTFS_PARTSIZE 1024
-
-        #### DNS
-        sh ./scripts/config unset CONFIG_PACKAGE_dnsmasq
-        sh ./scripts/config set   CONFIG_PACKAGE_dnsmasq-full=y
-
-        #### LuCI web stack: nginx + openssl
-        sh ./scripts/config set   CONFIG_PACKAGE_luci-nginx=y
-        sh ./scripts/config set   CONFIG_PACKAGE_luci-ssl-openssl=y
-
-        # 防止被自动拉回 uhttpd
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-ssl
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-uhttpd
-
-        #### LuCI Simplified Chinese
-        sh ./scripts/config set CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-
-        #### LuCI applications
-        sh ./scripts/config set CONFIG_PACKAGE_luci-app-ddns=y
-        sh ./scripts/config set CONFIG_PACKAGE_luci-app-nlbwmon=y
-        sh ./scripts/config set CONFIG_PACKAGE_luci-app-passwall2=y
-        sh ./scripts/config set CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y
-        sh ./scripts/config set CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Haproxy=y
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Libev_Client
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Libev_Server
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Client
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Server
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_ShadowsocksR_Libev_Client
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_ShadowsocksR_Libev_Server
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Simple_Obfs
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_SingBox
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_tuic_client
-        sh ./scripts/config unset CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_V2ray_Plugin
-        sh ./scripts/config set CONFIG_PACKAGE_luci-app-upnp=y
-        
-        #### DDNS provider: Cloudflare
-        sh ./scripts/config set CONFIG_PACKAGE_ddns-scripts-cloudflare
-        
-        # 9. OpenSSH
-        sh ./scripts/config set CONFIG_PACKAGE_openssh-client=y
-        sh ./scripts/config set CONFIG_PACKAGE_openssh-server=y
-        sh ./scripts/config set CONFIG_PACKAGE_openssh-sftp-client=y
-        sh ./scripts/config set CONFIG_PACKAGE_openssh-sftp-server=y
-        
+        # 3. 直接修改 .config 文件
+        sed -i 's/^CONFIG_TARGET_ath79=.*/# CONFIG_TARGET_ath79 is not set/' .config
+        echo "CONFIG_TARGET_x86=y" >> .config
+        echo "CONFIG_TARGET_x86_64=y" >> .config
+        echo "CONFIG_TARGET_x86_64_DEVICE_generic=y" >> .config
+    
+        # Target images
+        echo "# CONFIG_TARGET_ROOTFS_EXT4FS is not set" >> .config
+        echo "# CONFIG_TARGET_IMAGES_GRUB is not set" >> .config
+        echo "CONFIG_TARGET_ROOTFS_PARTSIZE=1024" >> .config
+    
+        # DNS
+        echo "# CONFIG_PACKAGE_dnsmasq is not set" >> .config
+        echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+    
+        # LuCI
+        echo "CONFIG_PACKAGE_luci=y" >> .config
+        echo "CONFIG_PACKAGE_luci-nginx=y" >> .config
+        echo "CONFIG_PACKAGE_luci-ssl-openssl=y" >> .config
+        echo "# CONFIG_PACKAGE_luci-ssl is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-uhttpd is not set" >> .config
+        echo "CONFIG_PACKAGE_luci-i18n-base-zh-cn=y" >> .config
+    
+        # LuCI apps
+        echo "CONFIG_PACKAGE_luci-app-ddns=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-nlbwmon=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-passwall2=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-passwall2_Nftables_Transparent_Proxy=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Haproxy=y" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Hysteria is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_NaiveProxy is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Libev_Client is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Libev_Server is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Client is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Server is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_ShadowsocksR_Libev_Client is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_ShadowsocksR_Libev_Server is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Simple_Obfs is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_SingBox is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_tuic_client is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_V2ray_Plugin is not set" >> .config
+        echo "CONFIG_PACKAGE_luci-app-upnp=y" >> .config
+    
+        # DDNS provider
+        echo "CONFIG_PACKAGE_ddns-scripts-cloudflare=y" >> .config
+    
+        # OpenSSH
+        echo "CONFIG_PACKAGE_openssh-client=y" >> .config
+        echo "CONFIG_PACKAGE_openssh-server=y" >> .config
+        echo "CONFIG_PACKAGE_openssh-sftp-client=y" >> .config
+        echo "CONFIG_PACKAGE_openssh-sftp-server=y" >> .config
+    
         # 内核模块
-        sh ./scripts/config set CONFIG_PACKAGE_kmod-tcp-bbr=y
-        sh ./scripts/config set CONFIG_PACKAGE_kmod-nft-socket=y
-        sh ./scripts/config set CONFIG_PACKAGE_kmod-nft-tproxy=y
-        #编辑器
-        sh ./scripts/config set CONFIG_PACKAGE_nano-plus=y
-        
-        make defconfig
+        echo "CONFIG_PACKAGE_kmod-tcp-bbr=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> .config
+    
+        # 编辑器
+        echo "CONFIG_PACKAGE_nano-plus=y" >> .config
     
     # - name: Copy custom .config 
     #   run: | 
