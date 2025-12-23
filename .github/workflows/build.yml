@@ -38,11 +38,11 @@ jobs:
         # 确保 HEAD 处于 v24.10.5 状态
         git checkout v24.10.5
     
-    - name: Add custom feeds for Passwall
-      run: |
-        cd openwrt
-        echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages" >> feeds.conf.default
-        echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2" >> feeds.conf.default
+    #- name: Add custom feeds for Passwall
+    #  run: |
+    #    cd openwrt
+    #    echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages" >> feeds.conf.default
+    #    echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2" >> feeds.conf.default
     
     - name: Update feeds
       run: |
