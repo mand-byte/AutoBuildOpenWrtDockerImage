@@ -4,11 +4,16 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch: # 允许手动触发
+    inputs:
+      openwrt_version:
+        description: 'OpenWrt 版本号 (例如 24.10.5)'
+        required: true
+        default: '24.10.5'
+        type: string
 
 jobs:
   build:
-    runs-on: ubuntu-24.04 # 建议使用 24.04 匹配最新工具链
-
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -32,36 +37,50 @@ jobs:
 
     - name: Checkout OpenWrt source
       run: |
-        # 1. 克隆代码并指定 Tag
         git clone https://github.com/openwrt/openwrt.git
         cd openwrt
-        # 确保 HEAD 处于 v24.10.5 状态
-        git checkout v24.10.5
-    
-    #- name: Add custom feeds for Passwall
-    #  run: |
-    #    cd openwrt
-    #    echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages" >> feeds.conf.default
-    #    echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2" >> feeds.conf.default
-    
+        git checkout v${{ inputs.openwrt_version }}
+
+    - name: Replace feeds.conf.default with GitHub mirrors (dynamic branch)
+      run: |
+        cd openwrt
+        
+        # 计算 feeds 分支名，例如 24.10.5 → openwrt-24.10
+        MAJOR_MINOR=$(echo ${{ inputs.openwrt_version }} | cut -d. -f1-2)
+        FEEDS_BRANCH="openwrt-${MAJOR_MINOR}"
+        
+        echo "Using OpenWrt version: ${{ inputs.openwrt_version }}"
+        echo "Feeds branch: ${FEEDS_BRANCH}"
+        
+        # 备份原文件
+        cp feeds.conf.default feeds.conf.default.bak
+        
+        # 动态替换 4 个官方 feeds 为 GitHub 镜像 + 分支
+        sed -i "s|https://git.openwrt.org/feed/packages.git.*|https://github.com/openwrt/packages.git;${FEEDS_BRANCH}|" feeds.conf.default
+        sed -i "s|https://git.openwrt.org/project/luci.git.*|https://github.com/openwrt/luci.git;${FEEDS_BRANCH}|" feeds.conf.default
+        sed -i "s|https://git.openwrt.org/feed/routing.git.*|https://github.com/openwrt/routing.git;${FEEDS_BRANCH}|" feeds.conf.default
+        sed -i "s|https://git.openwrt.org/feed/telephony.git.*|https://github.com/openwrt/telephony.git;${FEEDS_BRANCH}|" feeds.conf.default
+        
+        # 输出查看结果
+        echo "Updated feeds.conf.default:"
+        cat feeds.conf.default
+
     - name: Update feeds
       run: |
         cd openwrt
         ./scripts/feeds update -a
-    
+
     - name: Install feeds
       run: |
         cd openwrt
         ./scripts/feeds install -a
-    
-    
-    
-    - name: Copy custom .config 
-      run: | 
-        cp ../.config .config
+
+    - name: Copy custom .config
+      run: |
+        cp ../.config openwrt/.config
         make defconfig
       working-directory: openwrt
-      
+
     - name: Download dependencies
       run: |
         cd openwrt
@@ -70,9 +89,8 @@ jobs:
     - name: Build OpenWrt
       run: |
         cd openwrt
-        # 第一次建议使用单线程排错，或 -j$(nproc) 快速编译
         make -j$(nproc) || make -j1 V=s
-      
+
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
       with:
