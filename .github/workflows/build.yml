@@ -77,7 +77,7 @@ jobs:
 
     - name: Copy custom .config
       run: |
-        cp ../.config openwrt/.config
+        cp ../.config .config
         make defconfig
       working-directory: openwrt
 
