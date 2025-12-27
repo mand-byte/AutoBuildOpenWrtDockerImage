@@ -75,34 +75,13 @@ jobs:
         cd openwrt
         ./scripts/feeds install -a
         
-    - name: Add TurboACC packages and patches
+    - name: Add TurboACC (without Shortcut-FE)
       run: |
         cd openwrt
-        
-        # 创建临时目录
-        mkdir -p turboacc_tmp
-        
-        # 克隆 turboacc 仓库的 package 分支（包含补丁和依赖）
-        git clone --depth=1 --branch package https://github.com/chenmozhijin/turboacc.git turboacc_tmp/turboacc
-        
-        # 复制 luci-app-turboacc
-        cp -r turboacc_tmp/turboacc/luci-app-turboacc package/
-        
-        # 复制 nft-fullcone（全锥 NAT 依赖）
-        cp -r turboacc_tmp/turboacc/nft-fullcone package/
-        
-        # 应用内核补丁（针对 OpenWrt 24.10 的 kernel 6.6）
-        cp turboacc_tmp/turboacc/hack-6.6/952-add-net-conntrack-events-support-multiple-registrant.patch target/linux/generic/hack-6.6/
-        cp turboacc_tmp/turboacc/hack-6.6/953-net-patch-linux-kernel-to-support-shortcut-fe.patch target/linux/generic/hack-6.6/
-        # 如果要全锥 NAT 的额外补丁（可选，已包含在上面）
-        # cp turboacc_tmp/turboacc/hack-6.6/613-nftables-fullcone-expression-support.patch target/linux/generic/hack-6.6/  # 如果有的话
-        
-        # 清理临时目录
-        rm -rf turboacc_tmp
-        
-        # 更新 feeds（可选，但推荐）
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+        curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh
+        chmod +x add_turboacc.sh
+        ./add_turboacc.sh --no-sfe
+    
     - name: Copy custom .config
       run: |
         cp ../.config .config
