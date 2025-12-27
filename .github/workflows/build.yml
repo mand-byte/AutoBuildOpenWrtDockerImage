@@ -91,9 +91,6 @@ jobs:
         # 复制 nft-fullcone（全锥 NAT 依赖）
         cp -r turboacc_tmp/turboacc/nft-fullcone package/
         
-        # 复制 shortcut-fe（SFE 加速核心）
-        cp -r turboacc_tmp/turboacc/shortcut-fe package/
-        
         # 应用内核补丁（针对 OpenWrt 24.10 的 kernel 6.6）
         cp turboacc_tmp/turboacc/hack-6.6/952-add-net-conntrack-events-support-multiple-registrant.patch target/linux/generic/hack-6.6/
         cp turboacc_tmp/turboacc/hack-6.6/953-net-patch-linux-kernel-to-support-shortcut-fe.patch target/linux/generic/hack-6.6/
